@@ -1,8 +1,10 @@
 <template>
-  <div ref="displayExcel">
+  <div>
     <div class="mb-md">
       <input type="file" @change="carregar">
       <button @click="valores">Exibir Valores Selecionados (console)</button>
+    </div>
+    <div ref="displayExcel">
     </div>
   </div>
 </template>
@@ -19,29 +21,34 @@ export default {
       posicaoSelecaoInicial: {linha: -1, coluna: -1},
       posicaoSelecaoFinal: {linha: -1, coluna: -1},
       options: {
-        minDimensions: [25,30],
         onselection: this.selecaoAtiva
       }
     }
   },
-  mounted () {
-    this.displayExcel = jexcel(this.$refs["displayExcel"], this.options)
-  },
   methods: {
+    carregarDimensoesPlanilha (workSheet) {
+      let numeroLinhas = workSheet.length
+      let numeroColunas = 0
+      for (let row in workSheet) {
+        numeroColunas = numeroColunas < workSheet[row].length? workSheet[row].length : numeroColunas
+      }
+      workSheet.dimensions = [numeroColunas, numeroLinhas]
+    },
     carregar (fileSelected) {
       let file = fileSelected.target.files[0]
       let reader = new FileReader()
       let name = file.name
       reader.onload = e => {
-        let results,
-          data = e.target.result,
+        let data = e.target.result,
           fixedData = this.fixData(data),
           workbook = XLSX.read(btoa(fixedData), {type: 'base64'}),
           firstSheetName = workbook.SheetNames[0],
-          worksheet = workbook.Sheets[firstSheetName];
-        let result222 = this.workbook_to_json(workbook)
-        console.log(result222)
-        this.options.data = XLSX.utils.sheet_to_json(worksheet, {header: 1, raw: false})
+          worksheet = workbook.Sheets[firstSheetName]
+        // let result222 = this.workbook_to_json(workbook)
+        let memWorkSheet = XLSX.utils.sheet_to_json(worksheet, {header: 1, raw: false})
+        this.carregarDimensoesPlanilha(memWorkSheet)
+        this.options.minDimensions = memWorkSheet.dimensions
+        this.options.data = memWorkSheet
         this.displayExcel = jexcel(this.$refs["displayExcel"], this.options)
       }
       reader.readAsArrayBuffer(file)
@@ -55,7 +62,7 @@ export default {
     workbook_to_json (workbook) {
       let result = {}
       workbook.SheetNames.forEach(sheetName => {
-        let roa = XLSX.utils.sheet_to_row_object_array(workbook.Sheets[sheetName], {header: 1})
+        let roa = XLSX.utils.sheet_to_row_object_array(workbook.Sheets[sheetName], {header: 1, raw: false})
         if (roa.length > 0) {
           result[sheetName] = roa
         }
